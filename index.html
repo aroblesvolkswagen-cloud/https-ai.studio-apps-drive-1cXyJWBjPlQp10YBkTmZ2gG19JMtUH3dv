@@ -1,0 +1,398 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <title>Venki Quality Hub</title>
+    <link rel="icon" href="data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3e%3cpath fill='%2301AEF0' d='M 50,0 L 0,100 L 50,60 Z' /%3e%3cpath fill='%2301AEF0' d='M 50,0 L 100,100 L 50,60 Z' /%3e%3cpath fill='%23EE008C' d='M 0,100 L 50,100 L 50,60 Z' /%3e%3cpath fill='%23FFF200' d='M 100,100 L 50,100 L 50,60 Z' /%3e%3c/svg%3e" />
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            colors: {
+              'venki-cyan': '#01AEF0',
+              'venki-yellow': '#FFF200',
+              'venki-magenta': '#EE008C',
+              'venki-deep-blue': '#0D47A1',
+              'venki-blue-dark': '#0a3a82',
+            },
+          },
+        },
+      }
+    </script>
+  <script type="importmap">
+{
+  "imports": {
+    "react/": "https://aistudiocdn.com/react@^19.1.1/",
+    "react": "https://aistudiocdn.com/react@^19.1.1",
+    "react-dom/": "https://aistudiocdn.com/react-dom@^19.1.1/",
+    "@google/genai": "https://aistudiocdn.com/@google/genai@^1.21.0",
+    "recharts": "https://aistudiocdn.com/recharts@^3.2.1",
+    "zustand": "https://aistudiocdn.com/zustand@^5.0.1",
+    "jspdf": "https://aistudiocdn.com/jspdf@^2.5.1",
+    "html2canvas": "https://aistudiocdn.com/html2canvas@^1.4.1",
+    "jspdf-autotable": "https://aistudiocdn.com/jspdf-autotable@^3.8.2",
+    "zustand/": "https://aistudiocdn.com/zustand@^5.0.8/"
+  }
+}
+</script>
+<style>
+  :root {
+    /* Fondo institucional azul (gradiente sutil, profundo y difuminado) */
+    --bg-blue-900: #0b1e3a;
+    --bg-blue-800: #0e2a5a;
+    --bg-blue-700: #133b73;
+    --app-bg: linear-gradient(160deg, var(--bg-blue-900) 0%, var(--bg-blue-800) 55%, var(--bg-blue-700) 100%);
+
+    /* Venki Institutional Colors */
+    --venki-cyan: #01AEF0;
+    --venki-magenta: #EE008C;
+    --venki-yellow: #FFF200;
+
+    /* Paleta extendida sutil (no sustituye colores del logo) */
+    --brand-primary-300: #93c5fd;
+    --brand-primary-500: #5aa6ff;
+    --brand-primary-600: #3f83f8;
+    --accent-cyan: #22d3ee;
+    --accent-teal: #2dd4bf;
+    --accent-indigo: #818cf8;
+    --accent-lavender: #c7b9ff;
+    --accent-mint: #a7f3d0;
+    --accent-peach: #ffd4b8;
+
+    /* Texto */
+    --text-strong: #eaf2ff;
+    --text-default: #d5e1ff;
+    --text-muted: #a8b9dd;
+
+    /* Estados */
+    --success: #34d399;
+    --warning: #fbbf24;
+    --danger: #f87171;
+
+    /* Glassmorphism core (INTENSIFIED) */
+    --glass-bg: rgba(255, 255, 255, 0.08);
+    --glass-bg-strong: rgba(255, 255, 255, 0.12);
+    --glass-bg-hover: rgba(255, 255, 255, 0.15);
+    --glass-bg-active: rgba(1, 174, 240, 0.25); /* Cyan tint */
+    --glass-border: rgba(255, 255, 255, 0.18);
+    --glass-border-active: rgba(1, 174, 240, 0.6); /* Cyan border */
+    --glass-highlight: rgba(255, 255, 255, 0.35);
+    --glass-shadow: 0 16px 50px rgba(0, 0, 0, 0.5); /* Deeper shadow */
+    --glass-blur: 18px; /* More blur */
+    --glass-radius: 14px;
+    --ring-focus: rgba(34, 211, 238, 0.35);
+    --glass-glow: 0 0 20px rgba(1, 174, 240, 0.3); /* Cyan glow for active/focus */
+
+
+    /* Bordes con degradado sutil (halo) */
+    --glass-border-gradient: linear-gradient(
+      180deg,
+      rgba(255,255,255,0.28),
+      rgba(255,255,255,0.12) 30%,
+      rgba(255,255,255,0.06) 60%,
+      rgba(255,255,255,0.00)
+    );
+
+    /* Brillos especulares y glare animado */
+    --glare-start: rgba(255,255,255,0.18);
+    --glare-end: rgba(255,255,255,0.02);
+
+    /* Ruido sutil */
+    --noise-opacity: 0.05; /* More noise */
+
+    /* Sombras de profundidad */
+    --shadow-soft: 0 10px 40px rgba(0,0,0,0.35);
+  }
+
+  html, body, #root {
+    background: var(--app-bg);
+    color: var(--text-default);
+    min-height: 100vh;
+  }
+  
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--glass-border) transparent;
+  }
+  *::-webkit-scrollbar {
+    width: 8px;
+  }
+  *::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  *::-webkit-scrollbar-thumb {
+    background-color: var(--glass-border);
+    border-radius: 10px;
+    border: 2px solid transparent;
+    background-clip: content-box;
+  }
+
+  /* Utilidad: capa de ruido sutil para vidrio realista */
+  .glass-noise::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140' viewBox='0 0 140 140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='4' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.14'/%3E%3C/svg%3E");
+    mix-blend-mode: overlay;
+    opacity: var(--noise-opacity);
+    border-radius: inherit;
+  }
+
+  /* Utilidad: glare/flare animado (especular) */
+  @keyframes glass-glare {
+    0% { transform: translateX(-120%) translateY(-80%) rotate(20deg); opacity: .0; }
+    40% { opacity: .28; }
+    100% { transform: translateX(170%) translateY(120%) rotate(20deg); opacity: .0; }
+  }
+
+  /* Componente base glass (tarjetas/paneles) */
+  .glass {
+    position: relative;
+    background: var(--glass-bg);
+    backdrop-filter: blur(var(--glass-blur));
+    -webkit-backdrop-filter: blur(var(--glass-blur));
+    border-radius: var(--glass-radius);
+    border: 1px solid var(--glass-border);
+    box-shadow: var(--glass-shadow);
+    overflow: hidden;
+    transition: background-color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+  }
+  .glass::after {
+    /* borde Halo */
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    pointer-events: none;
+    background: var(--glass-border-gradient);
+    mix-blend-mode: screen;
+    opacity: .6;
+  }
+
+  /* Especular highlight superior */
+  .glass .glass-specular {
+    position: absolute;
+    top: -30%;
+    left: -30%;
+    width: 80%;
+    height: 60%;
+    background: radial-gradient(ellipse at center, var(--glare-start), var(--glare-end) 60%);
+    transform: rotate(6deg);
+    filter: blur(10px);
+    opacity: .25;
+    pointer-events: none;
+  }
+
+  /* Animación de glare diagonal opcional (hover) */
+  .glass:hover .glass-glare {
+    animation: glass-glare 2.2s ease-in-out forwards;
+  }
+  .glass .glass-glare {
+    content: "";
+    position: absolute;
+    top: -50%;
+    left: -40%;
+    width: 60%;
+    height: 220%;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.22), transparent);
+    transform: rotate(20deg);
+    opacity: 0;
+    pointer-events: none;
+  }
+  
+  /* ---- NEW INTERACTIVE STATES ---- */
+  /* For selectable but not active items like list entries */
+  .glass-button {
+    background: var(--glass-bg);
+    border: 1px solid var(--glass-border);
+    cursor: pointer;
+    transition: transform 0.2s ease, background 0.2s ease, border-color 0.2s ease;
+  }
+  .glass-button:hover {
+    transform: translateY(-2px);
+    background: var(--glass-bg-hover);
+    border-color: var(--glass-border);
+  }
+
+  /* For the currently selected/active item */
+  .glass-active {
+    background: var(--glass-bg-active) !important;
+    border-color: var(--glass-border-active) !important;
+    box-shadow: var(--glass-glow), var(--glass-shadow);
+    transform: translateY(-1px);
+  }
+  /* ---- END NEW STATES ---- */
+
+
+  /* Glass variante fuerte (modales y cabeceras) */
+  .glass-strong {
+    background: var(--glass-bg-strong);
+  }
+  
+  .glass-magenta {
+    background: rgba(238, 0, 140, 0.15); /* Derived from --venki-magenta */
+  }
+
+  .glass-danger {
+    background: rgba(239, 68, 68, 0.1); /* --danger with opacity */
+    border-color: rgba(239, 68, 68, 0.25);
+  }
+  
+  .trash-module .tab.active {
+    background: rgba(239, 68, 68, 0.25) !important; /* from var(--danger) */
+    border-color: rgba(239, 68, 68, 0.5) !important;
+    color: var(--text-strong) !important;
+    box-shadow: 0 0 15px rgba(239, 68, 68, 0.3); /* Red glow */
+  }
+
+
+  /* Inputs glass */
+  .input-glass, select.input-glass, textarea.input-glass, select, textarea {
+    background: rgba(255,255,255,0.06);
+    color: var(--text-strong);
+    border: 1px solid var(--glass-border);
+    border-radius: 12px;
+    padding: 10px 12px;
+    outline: none;
+    transition: box-shadow .2s, border-color .2s, background .2s, transform .1s;
+  }
+  .input-glass::placeholder, textarea::placeholder { color: var(--text-muted); }
+  .input-glass:focus, select:focus, textarea:focus, select.input-glass:focus, textarea.input-glass:focus {
+    border-color: var(--accent-cyan);
+    box-shadow: 0 0 0 3px var(--ring-focus), var(--glass-glow);
+    transform: translateY(-1px);
+  }
+
+  /* FIX: Added style for select options to make them readable */
+  select option {
+    background: var(--bg-blue-900);
+    color: var(--text-default);
+  }
+
+
+  /* Botones */
+  .btn-primary {
+    background: linear-gradient(160deg, var(--brand-primary-600), var(--brand-primary-500));
+    color: white;
+    border: 1px solid rgba(255,255,255,0.15);
+    border-radius: 12px;
+    padding: 10px 14px;
+    transition: transform .1s ease, box-shadow .2s ease, opacity .2s;
+    box-shadow: var(--shadow-soft);
+  }
+  .btn-primary:hover { opacity: .95; transform: translateY(-2px); box-shadow: 0 12px 30px rgba(0,0,0,0.4); }
+  .btn-primary:active { transform: translateY(0); }
+
+  .btn-secondary {
+    background: var(--glass-bg);
+    color: var(--text-default);
+    border: 1px solid var(--glass-border);
+    border-radius: 12px;
+    padding: 10px 14px;
+    box-shadow: var(--shadow-soft);
+    transition: transform .1s ease, box-shadow .2s ease, background .2s;
+  }
+  .btn-secondary:hover { background: var(--glass-bg-hover); transform: translateY(-2px); box-shadow: 0 12px 30px rgba(0,0,0,0.4); }
+  .btn-secondary:active { transform: translateY(0); }
+  
+  .btn-danger {
+    background: linear-gradient(160deg, #ef4444, var(--danger));
+    color: white; border-radius: 12px; padding: 10px 14px;
+    transition: transform .1s ease, box-shadow .2s ease, opacity .2s;
+    box-shadow: var(--shadow-soft);
+  }
+  .btn-danger:hover { opacity: .95; transform: translateY(-2px); box-shadow: 0 12px 30px rgba(239, 68, 68, 0.2); }
+  .btn-danger:active { transform: translateY(0); }
+
+  .btn-icon-danger {
+    background: rgba(239, 68, 68, 0.15); /* Translucent red from var(--danger) */
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border: 1px solid rgba(239, 68, 68, 0.25);
+    border-radius: 9999px;
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--danger);
+    transition: all 0.2s ease-in-out;
+  }
+  .btn-icon-danger:hover {
+    background: rgba(239, 68, 68, 0.3);
+    color: #fff;
+    transform: scale(1.1);
+    box-shadow: 0 4px 15px rgba(239, 68, 68, 0.3);
+  }
+
+
+  /* Tabs */
+  .tabs { display: flex; gap: 8px; }
+  .tab {
+    background: var(--glass-bg);
+    border: 1px solid var(--glass-border);
+    color: var(--text-default);
+    padding: 8px 12px;
+    border-radius: 12px;
+    cursor: pointer;
+    transition: transform .2s ease, background .2s, border-color .2s;
+  }
+  .tab:hover { 
+    transform: translateY(-2px); 
+    background: var(--glass-bg-hover);
+  }
+  .tab.active {
+    background: var(--glass-bg-active);
+    color: var(--text-strong);
+    border-color: var(--glass-border-active);
+    box-shadow: var(--glass-glow);
+  }
+  
+  /* Institutional Text Styles */
+  .venki-title-gradient {
+    background: linear-gradient(90deg, var(--venki-cyan), var(--venki-magenta));
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+
+  .venki-subtitle {
+    color: var(--venki-yellow);
+    font-weight: 700;
+    text-shadow: 0 1px 3px rgba(0,0,0,0.5);
+  }
+
+  .venki-text-gradient {
+    background: linear-gradient(to right, var(--venki-cyan), var(--venki-magenta), var(--venki-yellow));
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+  
+  .venki-value {
+    text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+  }
+  
+  .status-indicator-pending { background-color: rgba(251, 191, 36, 0.2); color: rgba(251, 191, 36, 1); border: 1px solid rgba(251, 191, 36, 0.4); }
+  .status-indicator-progress { background-color: rgba(90, 166, 255, 0.2); color: rgba(90, 166, 255, 1); border: 1px solid rgba(90, 166, 255, 0.4); }
+  .status-indicator-completed { background-color: rgba(52, 211, 153, 0.2); color: rgba(52, 211, 153, 1); border: 1px solid rgba(52, 211, 153, 0.4); }
+  
+</style>
+
+</head>
+<body>
+  <noscript>You need to enable JavaScript to run this app.</noscript>
+  <div id="root"></div>
+  <div id="pdf-loading-overlay" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 10000; align-items: center; justify-content: center; color: white; flex-direction: column; gap: 1rem;">
+    <svg className="animate-spin h-8 w-8 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+    </svg>
+    <p id="pdf-loading-message">Generando PDF...</p>
+  </div>
+  <script type="module" src="/index.tsx"></script>
+</body>
+</html>
