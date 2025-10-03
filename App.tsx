@@ -3,7 +3,7 @@ import { useAppStore } from './useAppStore';
 import LoginScreen from './components/LoginScreen';
 import HorizontalNav from './components/HorizontalNav';
 import ExecutiveDashboard from './modules/ExecutiveDashboard';
-import OrderManagement from './modules/InkManagement';
+import OrderManagement from './modules/OrderManagement';
 import ScrapControl from './modules/ScrapControl';
 import Inventory from './modules/Inventory';
 import MachineManagement from './modules/MachineManagement';

@@ -42,6 +42,7 @@ const recalculateOrderProgress = (order: ProductionOrder): Partial<ProductionOrd
     let totalMetersFromMeters = 0;
     let totalMetersFromLabels = 0;
 
+    // This function requires order.events to be an array.
     for (const event of order.events) {
         if (event.type === ProductionEventType.GoodProduction && event.quantity) {
             if (event.unit === 'labels') {
@@ -65,13 +66,16 @@ const recalculateOrderProgress = (order: ProductionOrder): Partial<ProductionOrd
       targetQuantity = order.quantity * (order.quantityUnit === 'millares' ? 1000 : 1);
     }
     
-
+    // This calculation is safe from division by zero.
     const progressPercentage = targetQuantity > 0 ? (finalTotalQuantity / targetQuantity) * 100 : 0;
     
+    // Return a valid number, capped at 100.
+    const finalProgress = Number.isNaN(progressPercentage) ? 0 : Math.min(progressPercentage, 100);
+
     return {
         quantityProduced: finalTotalQuantity,
         linearMetersProduced: finalTotalMeters,
-        progressPercentage: Math.min(progressPercentage, 100) // Cap at 100%
+        progressPercentage: finalProgress,
     };
 };
 
@@ -87,7 +91,6 @@ interface PersistedState {
   fmeas: FmeaDocument[];
   employees: Employee[];
   inkFormulas: InkFormula[];
-  // New persisted state for costing
   materials: Material[];
   // rateTables is not persisted per user request
   targets: Targets;
@@ -539,7 +542,6 @@ export const useAppStore = create<AppState & AppActions>()(
       version: STORAGE_VERSION,
       storage: createJSONStorage(safeStorage),
       
-      // Explicitly define which parts of the state to persist
       partialize: (state): Omit<PersistedState, 'rateTables'> => ({
         adminPassword: state.adminPassword,
         inventoryItems: state.inventoryItems,
@@ -555,33 +557,67 @@ export const useAppStore = create<AppState & AppActions>()(
       }),
       
       merge: (persistedState, currentState) => {
-        // Custom merge function to prioritize persisted state over initial state
-        // This prevents user data from being overwritten on app updates.
-        if (!persistedState) {
+        if (!persistedState || typeof persistedState !== 'object') {
+            console.warn("Corrupted or invalid state found in storage. Resetting to initial state.");
             return currentState;
         }
 
-        const initial = getInitialState();
+        const stateFromStorage = { ...persistedState } as Partial<AppState>;
 
-        return {
-            ...currentState, // Non-persisted state
-            ...initial, // Base initial state for data
-            ...(persistedState as object), // Overwrite with user's saved data
-        };
+        const arrayKeys: (keyof PersistedState)[] = [
+            'inventoryItems', 'scrapEntries', 'productionOrders', 
+            'scrapCauses', 'machines', 'fmeas', 'employees', 
+            'inkFormulas', 'materials'
+        ];
+
+        for (const key of arrayKeys) {
+            if (!Array.isArray(stateFromStorage[key])) {
+                if (stateFromStorage[key] !== undefined) {
+                    console.warn(`Persisted state for '${key}' was not an array. Resetting.`);
+                }
+                (stateFromStorage as any)[key] = (currentState as any)[key];
+            }
+        }
+
+        if (Array.isArray(stateFromStorage.productionOrders)) {
+            stateFromStorage.productionOrders = stateFromStorage.productionOrders.map(order => {
+                if (!order || typeof order !== 'object') {
+                    return null;
+                }
+                const sanitizedOrder = {
+                    ...order,
+                    events: Array.isArray(order.events) ? order.events : [],
+                    inks: Array.isArray(order.inks) ? order.inks : [],
+                    materials: Array.isArray(order.materials) ? order.materials : [],
+                };
+                const progressUpdates = recalculateOrderProgress(sanitizedOrder);
+                return { ...sanitizedOrder, ...progressUpdates };
+            }).filter((o): o is ProductionOrder => o !== null);
+        }
+
+        if (!stateFromStorage.targets || typeof stateFromStorage.targets !== 'object') {
+            if (stateFromStorage.targets !== undefined) {
+                console.warn(`Persisted state for 'targets' was not an object. Resetting.`);
+            }
+            stateFromStorage.targets = currentState.targets;
+        }
+
+        return { ...currentState, ...stateFromStorage };
       },
 
-      // For handling future data structure changes
       migrate: (persistedState, version) => {
+        if (!persistedState || typeof persistedState !== 'object') {
+            return getInitialState();
+        }
+        
         const state = persistedState as any;
         if (version < 5) {
              if(state.productionOrders) {
                 state.productionOrders.forEach((o: any) => {
                     if (!o.events) o.events = [];
                     if (o.archivedAt && o.status !== 'Archivada') o.status = 'Archivada';
-                    // Remove deprecated progress fields to force recalculation
                     delete o.progressPercentage;
                     delete o.linearMetersProduced;
-                    // quantityProduced is still needed for display before full event-sourcing
                 });
             }
         }
@@ -590,17 +626,10 @@ export const useAppStore = create<AppState & AppActions>()(
       
       onRehydrateStorage: () => {
         return (state, error) => {
-            if (state) {
-                 // Trigger recalculation for all orders on startup to ensure consistency
-                const recalculatedOrders = state.productionOrders.map(order => {
-                    const progressUpdates = recalculateOrderProgress(order);
-                    return { ...order, ...progressUpdates };
-                });
-                state.setProductionOrders(recalculatedOrders);
-                console.log("Hydration finished and progress recalculated.");
-            }
-            if(error){
-                console.error("An error happened during hydration", error);
+            if (error) {
+                console.error("An error occurred during Zustand hydration:", error);
+            } else {
+                console.log("Zustand hydration finished successfully.");
             }
         }
       },
