@@ -38,14 +38,14 @@ const PantoneColorPicker: React.FC<PantoneColorPickerProps> = ({ inks, onSelectI
                 placeholder="Buscar por nombre o código Pantone..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className={TEXT_INPUT_STYLE.replace('mt-1', '')}
+                className={TEXT_INPUT_STYLE}
             />
-            <div className="max-h-80 overflow-y-auto grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 p-2 neumorphic-inset rounded-lg">
+            <div className="max-h-80 overflow-y-auto grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 p-2 glass rounded-lg">
                 {filteredInks.map(ink => (
                     <button
                         key={ink.id}
                         onDoubleClick={() => handleSelect(ink)}
-                        className="relative flex flex-col items-center p-2 rounded-lg transition-all duration-200 hover:bg-white/20 focus:outline-none focus:ring-2 focus:ring-cyan-400 neumorphic-button"
+                        className="relative flex flex-col items-center p-2 rounded-lg transition-all duration-200 hover:bg-white/20 focus:outline-none focus:ring-2 focus:ring-cyan-400 glass-button"
                         title={`Doble clic para añadir ${ink.name}`}
                     >
                         <div

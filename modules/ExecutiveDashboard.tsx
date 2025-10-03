@@ -73,7 +73,7 @@ const ExecutiveDashboard: React.FC = () => {
         cumulative += cause.Frecuencia;
         return {
             ...cause,
-            Cumulativo: (cumulative / totalFrecuencia) * 100,
+            Cumulativo: totalFrecuencia > 0 ? (cumulative / totalFrecuencia) * 100 : 0,
         };
     });
   }, [scrapEntries]);

@@ -45,8 +45,8 @@ const RootCauseTree: React.FC<RootCauseTreeProps> = ({ data, isEditing, onDataCh
   }
 
   return (
-    <div className="p-6 neumorphic-card w-full overflow-x-auto printable-area">
-      <h3 className="text-lg font-semibold text-center text-venki-text mb-8">Diagrama de Árbol de Causas Raíz</h3>
+    <div className="p-6 glass glass-noise w-full overflow-x-auto printable-area">
+      <h3 className="text-lg font-semibold text-center venki-subtitle mb-8">Diagrama de Árbol de Causas Raíz</h3>
       <div className="flex items-center space-x-8 min-w-[1000px]">
         {/* Problem Node */}
         <div className="flex-shrink-0">
@@ -55,10 +55,10 @@ const RootCauseTree: React.FC<RootCauseTreeProps> = ({ data, isEditing, onDataCh
               type="text"
               value={data.problem}
               onChange={handleProblemChange}
-              className="p-3 border-2 border-red-500/50 bg-red-100 text-red-700 font-bold rounded-lg text-center neumorphic-inset"
+              className="p-3 border-2 border-red-500/50 bg-red-900/50 text-red-200 font-bold rounded-lg text-center input-glass"
             />
           ) : (
-            <div className="p-3 neumorphic-card text-red-700 font-bold">
+            <div className="p-3 glass glass-danger text-red-200 font-bold">
               {data.problem}
             </div>
           )}
@@ -74,10 +74,10 @@ const RootCauseTree: React.FC<RootCauseTreeProps> = ({ data, isEditing, onDataCh
                     type="text"
                     value={category.name}
                     onChange={(e) => handleCategoryNameChange(catIndex, e.target.value)}
-                    className="p-2 border-2 border-venki-blue/50 bg-blue-100 text-venki-blue font-semibold rounded-md text-center w-32 neumorphic-inset"
+                    className="p-2 border-2 border-venki-cyan/50 bg-venki-cyan/10 text-venki-cyan font-semibold rounded-md text-center w-32 input-glass"
                 />
               ) : (
-                <div className="p-2 neumorphic-card text-venki-blue font-semibold w-32 text-center">
+                <div className="p-2 glass text-venki-cyan font-semibold w-32 text-center">
                   {category.name}
                 </div>
               )}
@@ -90,10 +90,10 @@ const RootCauseTree: React.FC<RootCauseTreeProps> = ({ data, isEditing, onDataCh
                         type="text"
                         value={cause}
                         onChange={(e) => handleCauseChange(catIndex, causeIndex, e.target.value)}
-                        className="px-2 py-1 rounded-md text-sm w-40 bg-transparent text-gray-900 neumorphic-inset"
+                        className="px-2 py-1 rounded-md text-sm w-40 input-glass"
                       />
                     ) : (
-                      <div className="px-2 py-1 neumorphic-inset text-sm w-40 text-center">{cause}</div>
+                      <div className="px-2 py-1 glass text-sm w-40 text-center">{cause}</div>
                     )}
                     {isEditing && (
                         <button onClick={() => removeCause(catIndex, causeIndex)} className="ml-2 text-red-500 hover:text-red-700">{ICONS.Trash}</button>
@@ -101,7 +101,7 @@ const RootCauseTree: React.FC<RootCauseTreeProps> = ({ data, isEditing, onDataCh
                   </div>
                 ))}
                  {isEditing && (
-                    <button onClick={() => addCause(catIndex)} className="w-full mt-2 text-sm text-venki-blue hover:underline">+ Añadir Causa</button>
+                    <button onClick={() => addCause(catIndex)} className="w-full mt-2 text-sm text-venki-cyan hover:underline">+ Añadir Causa</button>
                  )}
               </div>
             </div>

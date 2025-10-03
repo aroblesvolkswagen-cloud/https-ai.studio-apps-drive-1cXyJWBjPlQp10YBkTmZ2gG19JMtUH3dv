@@ -40,10 +40,10 @@ const DynamicTips: React.FC = () => {
                 <h2 className="text-2xl font-bold text-white">Consejos Dinámicos de Calidad</h2>
             </div>
 
-            <div className="border-l-4 border-cyan-400 text-white p-4 no-print rounded-r-xl neumorphic-inset">
+            <div className="border-l-4 border-cyan-400 text-white p-4 no-print rounded-r-xl glass">
                 <div className="flex items-center">
                     <div className="flex-shrink-0">
-                        <div className="glass-icon-wrapper w-10 h-10">
+                        <div className="glass w-10 h-10 rounded-full flex items-center justify-center text-venki-cyan">
                           {ICONS.Question}
                         </div>
                     </div>
@@ -58,11 +58,11 @@ const DynamicTips: React.FC = () => {
                 </div>
             </div>
 
-            <div className="p-8 neumorphic-card text-center">
-                <div className="inline-flex items-center justify-center w-16 h-16 mb-4 rounded-full glass-icon-wrapper">
-                    {ICONS['DynamicTips']}
+            <div className="p-8 glass glass-noise text-center">
+                <div className="inline-flex items-center justify-center w-16 h-16 mb-4 rounded-full glass text-venki-cyan">
+                    {ICONS['FMEA']}
                 </div>
-                <h2 className="text-xl font-bold text-cyan-300">Consultor de Calidad IA</h2>
+                <h2 className="text-xl font-bold text-venki-cyan">Consultor de Calidad IA</h2>
                 <p className="mt-2 text-gray-300">
                     Obtén consejos y mejores prácticas para optimizar tus procesos.
                 </p>
@@ -86,12 +86,12 @@ const DynamicTips: React.FC = () => {
                             value={topic}
                             onChange={(e) => setTopic(e.target.value)}
                             placeholder="Ej: Cómo reducir el tiempo de cambio de trabajo"
-                            className={TEXT_INPUT_STYLE.replace('mt-1', '') + ' rounded-r-none'}
+                            className={TEXT_INPUT_STYLE + ' rounded-r-none'}
                         />
                         <button
                             onClick={handleGenerateTip}
                             disabled={isLoading}
-                            className="px-6 py-2 flex items-center justify-center neumorphic-button neumorphic-button-primary rounded-l-none"
+                            className="px-6 py-2 flex items-center justify-center btn-primary rounded-l-none"
                         >
                             {isLoading ? ICONS.Spinner : 'Generar Consejo'}
                         </button>
@@ -102,7 +102,7 @@ const DynamicTips: React.FC = () => {
             {error && <p className="mt-4 text-center text-red-400">{error}</p>}
             
             {tip && (
-                 <div className="mt-6 p-6 neumorphic-card border-l-4 border-cyan-400">
+                 <div className="mt-6 p-6 glass glass-noise border-l-4 border-cyan-400">
                     <h3 className="text-lg font-semibold text-white">Recomendación del Consultor IA:</h3>
                     <p className="mt-2 text-gray-300 whitespace-pre-wrap">{tip}</p>
                  </div>

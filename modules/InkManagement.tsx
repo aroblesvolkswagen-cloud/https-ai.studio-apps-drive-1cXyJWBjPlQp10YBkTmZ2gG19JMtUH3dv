@@ -1,21 +1,18 @@
-import React, { useState, useEffect, useRef, useMemo } from "react";
+import React, { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { ProductionOrder, Role, ProductionEventType, Uom, ProductionEvent, ProductionStatus } from "../types";
 import { useAppStore } from "../useAppStore";
 import Modal from "../components/Modal";
 import ExportModal from "../components/ExportModal";
 import { ICONS, TEXT_INPUT_STYLE, INK_CATALOG, WASTE_FACTOR_COLOR, WASTE_FACTOR_WHITE, DEFAULT_INK_COVERAGE_G_PER_M2 } from "../constants";
-// Si usas export a CSV/PDF, mantén helpers. Si no, puedes comentarlos para evitar warning.
-// import { exportDataToCSV, generatePdfReport } from "../utils/fileHelpers";
 import OrderEditModal from "../components/OrderEditModal";
 import { orderVariance } from "../utils/cost";
 
 const OrderManagement: React.FC = () => {
-  // Store (siempre con selectores)
   const user = useAppStore((s) => s.user);
-  const productionOrders = useAppStore((s) => s.productionOrders);
+  const productionOrders = useAppStore((s) => s.productionOrders) || []; // Garantizar que siempre sea un array
   const setProductionOrders = useAppStore((s) => s.setProductionOrders);
-  const machines = useAppStore((s) => s.machines);
-  const employees = useAppStore((s) => s.employees);
+  const machines = useAppStore((s) => s.machines) || [];
+  const employees = useAppStore((s) => s.employees) || [];
   const fetchAndUpdateInkFormula = useAppStore((s) => s.fetchAndUpdateInkFormula);
   const recomputeOrderCost = useAppStore((s) => s.recomputeOrderCost);
   const logProductionEvent = useAppStore((s) => s.logProductionEvent);
@@ -23,17 +20,30 @@ const OrderManagement: React.FC = () => {
   const setNotification = useAppStore((s) => s.setNotification ?? (() => {}));
   const archiveItem = useAppStore(s => s.archiveItem);
   const deleteItem = useAppStore(s => s.deleteItem);
-// FIX: Added showConfirm to component state to enable confirmation dialogs.
   const showConfirm = useAppStore(s => s.showConfirm);
 
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
-  
   const [logQuantity, setLogQuantity] = useState<number>(0);
-  const [logUnit, setLogUnit] = useState<Uom>('m');
+  const [logUnit, setLogUnit] = useState<Uom>("m");
+  const [activeListTab, setActiveListTab] = useState<
+'active' | 'completed'
+>(
+'active'
+);
 
   const visibleOrders = useMemo(
     () => productionOrders.filter(o => !o.archivedAt && !o.deletedAt),
     [productionOrders]
+  );
+
+  const activeOrders = useMemo(
+    () => visibleOrders.filter(o => o.status !== 'Completada' && o.status !== 'Cancelada'),
+    [visibleOrders]
+  );
+
+  const completedOrders = useMemo(
+    () => visibleOrders.filter(o => o.status === 'Completada' || o.status === 'Cancelada'),
+    [visibleOrders]
   );
   
   useEffect(() => {
@@ -44,31 +54,26 @@ const OrderManagement: React.FC = () => {
       }
   }, [visibleOrders, selectedOrderId]);
 
-  // Orden seleccionada (segura)
   const selectedOrder = useMemo(
     () => productionOrders.find((o) => o.id === selectedOrderId) || null,
     [productionOrders, selectedOrderId]
   );
 
-  // Recalcular costo sólo cuando cambia de orden
   useEffect(() => {
     if (selectedOrderId) {
       recomputeOrderCost(selectedOrderId);
     }
   }, [selectedOrderId, recomputeOrderCost]);
 
-  // Edición / export
   const [editingOrderData, setEditingOrderData] = useState<Partial<ProductionOrder> | null>(null);
   const [isOrderModalOpen, setIsOrderModalOpen] = useState(false);
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
 
-  // Fetch de fórmulas (evitar duplicado)
   const lookingUpFormulaForRef = useRef(new Set<string>());
 
   const canEdit = user?.role === Role.Admin;
   const canExport = user?.role === Role.Admin;
 
-  // Lista de tintas que requieren fórmula IA (si la usas)
   const inkIdsToFetch = useMemo(() => {
     if (!selectedOrder || !Array.isArray((selectedOrder as any).inks)) return [];
     const inks = (selectedOrder as any).inks as Array<any>;
@@ -92,13 +97,10 @@ const OrderManagement: React.FC = () => {
     });
   }, [inkIdsToFetch, selectedOrder, fetchAndUpdateInkFormula]);
 
-  // Procesamiento de tintas (g y costo) — robusto a faltantes
   const processedInks = useMemo(() => {
-    // Si la orden no tiene propiedad inks, nada que procesar.
     if (!selectedOrder || !Array.isArray((selectedOrder as any).inks)) return [];
     const inks = (selectedOrder as any).inks as Array<any>;
 
-    // Campos opcionales – si tu orden no los tiene, no hay cálculo automático de g (muestra 0)
     const quantity: number = (selectedOrder as any).quantity ?? 0;
     const quantityUnit: string = (selectedOrder as any).quantityUnit ?? "";
     const labelLength: number = (selectedOrder as any).labelLength ?? 0;
@@ -113,7 +115,6 @@ const OrderManagement: React.FC = () => {
 
     let targetInkWeight = 0;
 
-    // Cálculo por etiquetas si hay datos suficientes
     if (labelLength > 0 && totalLabels > 0 && labelsAcross > 0) {
       const wasteFactor = isColorJob ? WASTE_FACTOR_COLOR : WASTE_FACTOR_WHITE;
       const labelsPerMeter = 1000 / (labelLength + labelGapY);
@@ -125,7 +126,6 @@ const OrderManagement: React.FC = () => {
     }
 
     if (targetInkWeight <= 0 || inks.length === 0) {
-      // fallback: consumo 0; se mostrarán las tintas pero sin g/$
       return inks.map((ink) => {
         const base = INK_CATALOG.find((b) => b.id === ink.inkId);
         const pricePerGram = base?.pricePerGram ?? 0;
@@ -168,7 +168,7 @@ const OrderManagement: React.FC = () => {
     });
   }, [selectedOrder]);
   
-  const handleLogProduction = () => {
+  const handleLogProduction = useCallback(() => {
     if(!selectedOrder || !user || !selectedOrder.operatorId || !selectedOrder.machineId) return;
     if(logQuantity <= 0) {
         setNotification({message: "La cantidad debe ser mayor a cero.", type: "error"});
@@ -176,22 +176,22 @@ const OrderManagement: React.FC = () => {
     }
     logProductionEvent(selectedOrder.id, {
         type: ProductionEventType.GoodProduction,
-        operatorId: user.name, // Logged by the current admin user
+        operatorId: user.name,
         machineId: selectedOrder.machineId,
         quantity: logQuantity,
         unit: logUnit,
     });
     setNotification({message: `Registrados ${logQuantity} ${logUnit} de producción.`, type: 'success'});
     setLogQuantity(0);
-  };
+  }, [selectedOrder, user, logQuantity, logUnit, logProductionEvent, setNotification]);
   
-  const handleStatusChange = (newStatus: ProductionStatus) => {
+  const handleStatusChange = useCallback((newStatus: ProductionStatus) => {
       if(!selectedOrder) return;
       setOrderStatus(selectedOrder.id, newStatus);
       setNotification({message: `Estado de la orden cambiado a "${newStatus}"`, type: 'success'});
-  };
+  }, [selectedOrder, setOrderStatus, setNotification]);
 
-  const handleOrderSave = (updatedOrder: ProductionOrder) => {
+  const handleOrderSave = useCallback((updatedOrder: ProductionOrder) => {
     const exists = productionOrders.some((o) => o.id === updatedOrder.id);
     setProductionOrders(
       exists
@@ -202,7 +202,7 @@ const OrderManagement: React.FC = () => {
       setNotification?.({ message: `¡Orden ${exists ? "actualizada" : "creada"} con éxito!`, type: "success" });
     } catch {}
     if (!exists) setSelectedOrderId(updatedOrder.id);
-  };
+  }, [productionOrders, setProductionOrders, setNotification]);
 
   const getStatusIndicator = (status: ProductionOrder["status"]) => {
     const base = "px-2 py-0.5 text-xs rounded-full font-semibold ";
@@ -230,8 +230,8 @@ const OrderManagement: React.FC = () => {
     switch (type) {
       case ProductionEventType.GoodProduction: return 'Check';
       case ProductionEventType.Scrap: return 'Trash';
-      case ProductionEventType.Pause: return 'Alert'; // Placeholder
-      case ProductionEventType.Run: return 'Adjust'; // Placeholder
+      case ProductionEventType.Pause: return 'Alert';
+      case ProductionEventType.Run: return 'Adjust';
       default: return 'History';
     }
   };
@@ -272,33 +272,49 @@ const OrderManagement: React.FC = () => {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Listado de órdenes */}
         <div className="lg:col-span-1 glass glass-noise p-4">
-          <h3 className="venki-subtitle mb-4">Órdenes ({visibleOrders.length})</h3>
+          <h3 className="venki-subtitle mb-4">Órdenes</h3>
+          <div className="flex mb-4 space-x-2">
+            <button
+              onClick={() => setActiveListTab('active')}
+              className={`tab ${activeListTab === 'active' ? 'active' : ''}`}
+            >
+              Activas ({activeOrders ? activeOrders.length : 0})
+            </button>
+            <button
+              onClick={() => setActiveListTab('completed')}
+              className={`tab ${activeListTab === 'completed' ? 'active' : ''}`}
+            >
+              Terminadas ({completedOrders ? completedOrders.length : 0})
+            </button>
+          </div>
           <div className="space-y-2 max-h-[70vh] overflow-y-auto pr-2">
-            {visibleOrders.map((order) => (
-              <button
-                key={order.id}
-                onClick={() => setSelectedOrderId(order.id)}
-                className={`w-full text-left p-3 rounded-xl transition-all ${
-                  selectedOrderId === order.id ? "glass-active" : "glass-button"
-                }`}
-              >
-                <div className="flex justify-between items-center">
-                  <p className="font-bold">{order.id}</p>
-                  <span className={getStatusIndicator(order.status)}>{order.status}</span>
-                </div>
-                <p className="text-sm truncate">{(order as any).product ?? order.productName ?? ""}</p>
-                <p className="text-xs text-text-muted">{(order as any).client ?? ""}</p>
-                 <div className="w-full bg-gray-700/50 rounded-full h-1.5 mt-2">
-                    <div className="bg-gradient-to-r from-red-500 via-yellow-400 to-green-500 h-1.5 rounded-full" style={{ width: `${Math.min(order.progressPercentage || 0, 100)}%` }}></div>
-                </div>
-              </button>
-            ))}
+            {(activeListTab === 'active' ? activeOrders : completedOrders) && (activeListTab === 'active' ? activeOrders : completedOrders).length > 0 ? (
+              (activeListTab === 'active' ? activeOrders : completedOrders).map((order) => (
+                <button
+                  key={order.id}
+                  onClick={() => setSelectedOrderId(order.id)}
+                  className={`w-full text-left p-3 rounded-xl transition-all ${
+                    selectedOrderId === order.id ? "glass-active" : "glass-button"
+                  }`}
+                >
+                  <div className="flex justify-between items-center">
+                    <p className="font-bold">{order.id}</p>
+                    <span className={getStatusIndicator(order.status)}>{order.status}</span>
+                  </div>
+                  <p className="text-sm truncate">{(order as any).product ?? order.productName ?? ""}</p>
+                  <p className="text-xs text-text-muted">{(order as any).client ?? ""}</p>
+                   <div className="w-full bg-gray-700/50 rounded-full h-1.5 mt-2">
+                      <div className="bg-gradient-to-r from-red-500 via-yellow-400 to-green-500 h-1.5 rounded-full" style={{ width: `${Math.min(order.progressPercentage || 0, 100)}%` }}></div>
+                  </div>
+                </button>
+              ))
+            ) : (
+              <p className="text-center py-4 text-text-muted">No hay órdenes {activeListTab === 'active' ? 'activas' : 'terminadas'}.</p>
+            )}
           </div>
         </div>
 
-        {/* Detalle de la orden */}
         <div className="lg:col-span-2 space-y-6">
           {selectedOrder ? (
             <>
@@ -319,8 +335,8 @@ const OrderManagement: React.FC = () => {
                                 archiveItem(selectedOrder.id, 'order');
                                 setNotification({ message: 'Orden archivada.', type: 'success' });
                             }
-                        })} className="btn-secondary p-2" title="Archivar">{/* Archive Icon */}<svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 4H6a2 2 0 00-2 2v12a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-2m-4-1v8m0 0l3-3m-3 3L9 8m-5 5h14" /></svg></button>
-                        <button onClick={() => showConfirm({
+                        })} className="btn-secondary p-2" title="Archivar"><svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 4H6a2 2 0 00-2 2v12a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-2m-4-1v8m0 0l3-3m-3 3L9 8m-5 5h14" /></svg></button>
+                        <button onClick={( ) => showConfirm({
                             title: 'Eliminar Orden',
                             message: `¿Estás seguro de que quieres eliminar la orden ${selectedOrder.id}?`,
                             onConfirm: () => {
@@ -361,149 +377,186 @@ const OrderManagement: React.FC = () => {
               
               <div className="glass glass-noise p-6">
                 <h3 className="text-lg font-semibold venki-subtitle mb-4">Progreso de Producción</h3>
-                 <div className="flex items-center gap-6">
-                    <div className="relative h-24 w-24 flex-shrink-0">
-                        <svg className="h-full w-full transform -rotate-90" viewBox="0 0 36 36">
-                            <circle cx="18" cy="18" r="15.9155" className="stroke-current text-white/10" strokeWidth="3" fill="transparent" />
-                            <circle
-                                cx="18"
-                                cy="18"
-                                r="15.9155"
-                                className="stroke-current text-cyan-400"
-                                strokeWidth="3"
-                                fill="transparent"
-                                strokeDasharray={`${progress}, 100`}
-                                strokeLinecap="round"
-                            />
-                        </svg>
-                        <div className="absolute inset-0 flex items-center justify-center text-2xl font-bold text-white">{progress.toFixed(0)}%</div>
-                    </div>
-                    <div className="flex-grow grid grid-cols-2 gap-x-8 gap-y-2 text-sm">
-                        <div>
-                            <span className="text-xs text-text-muted block">Producción (unidades)</span>
-                            <p className="font-bold text-xl text-text-strong">{(selectedOrder.quantityProduced || 0).toLocaleString()}</p>
-                        </div>
-                        <div>
-                            <span className="text-xs text-text-muted block">Objetivo (unidades)</span>
-                            <p className="font-bold text-xl text-text-muted">{targetLabels.toLocaleString()}</p>
-                        </div>
-                        <div>
-                            <span className="text-xs text-text-muted block">Producción (metros)</span>
-                            <p className="font-bold text-xl text-text-strong">{(selectedOrder.linearMetersProduced || 0).toFixed(2)} m</p>
-                        </div>
-                        <div>
-                            <span className="text-xs text-text-muted block">Objetivo (metros)</span>
-                            <p className="font-bold text-xl text-text-muted">{targetMeters.toFixed(2)} m</p>
-                        </div>
-                        <div className="col-span-2 mt-2">
-                            <div className="w-full bg-gray-700/50 rounded-full h-2.5">
-                                <div className="bg-gradient-to-r from-red-500 via-yellow-400 to-green-500 h-2.5 rounded-full" style={{ width: `${Math.min(progress, 100)}%` }}></div>
-                            </div>
-                        </div>
-                    </div>
-                 </div>
-              </div>
-              
-               {canEdit && (
-                <div className="glass glass-noise p-6">
-                    <h3 className="text-lg font-semibold venki-subtitle mb-4">Acciones de Producción (Admin)</h3>
-                    <div className="flex items-end gap-2 mb-4">
-                        <div className="flex-grow">
-                            <label className="text-xs text-text-muted">Cantidad Producida</label>
-                            <input type="number" value={logQuantity || ''} onChange={e => setLogQuantity(Number(e.target.value))} className={TEXT_INPUT_STYLE} />
-                        </div>
-                        <div className="w-32">
-                            <label className="text-xs text-text-muted">Unidad</label>
-                            <select value={logUnit} onChange={e => setLogUnit(e.target.value as Uom)} className={TEXT_INPUT_STYLE}>
-                                <option value="m">Metros</option>
-                                <option value="labels">Etiquetas</option>
-                            </select>
-                        </div>
-                        <button onClick={handleLogProduction} className="btn-primary">Registrar</button>
-                    </div>
-                     <div className="flex flex-wrap gap-2 pt-4 border-t border-white/10">
-                        {selectedOrder.status === 'Pendiente' && <button onClick={() => handleStatusChange('En Progreso')} className="btn-secondary">Iniciar Corrida</button>}
-                        {selectedOrder.status === 'En Progreso' && <button onClick={() => handleStatusChange('Pausada')} className="btn-secondary">Pausar</button>}
-                        {selectedOrder.status === 'Pausada' && <button onClick={() => handleStatusChange('En Progreso')} className="btn-secondary">Reanudar</button>}
-                        {selectedOrder.status === 'En Progreso' && <button onClick={() => handleStatusChange('Completada')} className="btn-primary">Marcar como Completada</button>}
-                    </div>
+                <div className="flex items-center gap-4 mb-4">
+                  <div className="w-full bg-gray-700/50 rounded-full h-2.5">
+                    <div
+                      className="bg-gradient-to-r from-red-500 via-yellow-400 to-green-500 h-2.5 rounded-full"
+                      style={{ width: `${Math.min(progress, 100)}%` }}
+                    ></div>
+                  </div>
+                  <span className="text-sm font-medium text-text-muted">{progress.toFixed(0)}%</span>
                 </div>
-              )}
-              
-              {/* Análisis de costos */}
-              <div className="glass glass-noise p-6">
-                <h3 className="text-lg font-semibold venki-subtitle mb-4">Análisis de Costos</h3>
-                {variance ? (
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-center">
-                    <div>
-                      <p className="text-sm">Costo Objetivo</p>
-                      <p className="text-2xl font-bold text-cyan-300">${variance.target.toFixed(2)}</p>
-                    </div>
-                    <div>
-                      <p className="text-sm">Costo Real</p>
-                      <p className="text-2xl font-bold text-yellow-300">${variance.actual.toFixed(2)}</p>
-                    </div>
-                    <div>
-                      <p className="text-sm">Varianza</p>
-                      <p
-                        className={`text-2xl font-bold ${
-                          variance.variance > 0 ? "text-red-400" : "text-green-400"
-                        }`}
+
+                <div className="grid grid-cols-2 gap-4 text-sm">
+                  <div>
+                    <p className="text-text-muted">Etiquetas Planificadas:</p>
+                    <p className="font-semibold venki-value">{targetLabels}</p>
+                  </div>
+                  <div>
+                    <p className="text-text-muted">Metros Lineales Requeridos:</p>
+                    <p className="font-semibold venki-value">{targetMeters.toFixed(2)} m</p>
+                  </div>
+                  <div>
+                    <p className="text-text-muted">Etiquetas Producidas:</p>
+                    <p className="font-semibold venki-value">{selectedOrder.labelsProduced ?? 0}</p>
+                  </div>
+                  <div>
+                    <p className="text-text-muted">Metros Producidos:</p>
+                    <p className="font-semibold venki-value">{(selectedOrder.linearMetersProduced ?? 0).toFixed(2)} m</p>
+                  </div>
+                </div>
+
+                {canEdit && (
+                  <div className="mt-6 p-4 glass glass-strong rounded-lg">
+                    <h4 className="font-semibold mb-3">Registrar Producción</h4>
+                    <div className="flex flex-col sm:flex-row gap-3 items-center">
+                      <input
+                        type="number"
+                        value={logQuantity === 0 ? '' : logQuantity}
+                        onChange={(e) => setLogQuantity(parseFloat(e.target.value) || 0)}
+                        placeholder="Cantidad"
+                        className={`${TEXT_INPUT_STYLE} w-full sm:w-auto flex-grow`}
+                      />
+                      <select
+                        value={logUnit}
+                        onChange={(e) => setLogUnit(e.target.value as Uom)}
+                        className={`${TEXT_INPUT_STYLE} w-full sm:w-auto`}
                       >
-                        ${variance.variance.toFixed(2)}
+                        <option value="m">Metros</option>
+                        <option value="millares">Millares</option>
+                        <option value="unidades">Unidades</option>
+                      </select>
+                      <button onClick={handleLogProduction} className="btn-primary w-full sm:w-auto">
+                        Registrar
+                      </button>
+                    </div>
+                    <div className="mt-4">
+                      <h4 className="font-semibold mb-2">Cambiar Estado</h4>
+                      <select
+                        value={selectedOrder.status}
+                        onChange={(e) => handleStatusChange(e.target.value as ProductionStatus)}
+                        className={`${TEXT_INPUT_STYLE} w-full`}
+                      >
+                        {(['Nueva', 'En Progreso', 'Pausada', 'Completada', 'Cancelada', 'Pendiente', 'Archivada'] as ProductionStatus[]).map(status => (
+                          <option key={status} value={status}>{status}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <div className="glass glass-noise p-6">
+                <h3 className="text-lg font-semibold venki-subtitle mb-4">Tintas ({processedInks.length})</h3>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm text-left">
+                    <thead className="text-xs text-text-muted uppercase">
+                      <tr>
+                        <th className="px-4 py-2">Tinta</th>
+                        <th className="px-4 py-2">Hex</th>
+                        <th className="px-4 py-2">Consumo (g)</th>
+                        <th className="px-4 py-2">Costo ($)</th>
+                        <th className="px-4 py-2">%</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {processedInks.length > 0 ? (
+                        processedInks.map((ink, index) => (
+                          <tr key={index} className="border-b border-white/10">
+                            <td className="px-4 py-3 font-medium text-text-strong">{ink.name}</td>
+                            <td className="px-4 py-3">
+                              <div className="flex items-center gap-2">
+                                <span className="w-4 h-4 rounded-full inline-block" style={{ backgroundColor: ink.hex }}></span>
+                                {ink.hex}
+                              </div>
+                            </td>
+                            <td className="px-4 py-3">{ink.consumption.toFixed(2)} g</td>
+                            <td className="px-4 py-3">${(ink.consumption * ink.pricePerGram).toFixed(2)}</td>
+                            <td className="px-4 py-3">{((ink.consumption * ink.pricePerGram) / (processedInks.reduce((acc, curr) => acc + (curr.consumption * curr.pricePerGram), 0) || 1) * 100).toFixed(2)}%</td>
+                          </tr>
+                        ))
+                      ) : (
+                        <tr>
+                          <td colSpan={5} className="text-center py-4 text-text-muted">No hay tintas para esta orden.</td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              <div className="glass glass-noise p-6">
+                <h3 className="text-lg font-semibold venki-subtitle mb-4">Eventos de Producción</h3>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm text-left">
+                    <thead className="text-xs text-text-muted uppercase">
+                      <tr>
+                        <th className="px-4 py-2">Tipo</th>
+                        <th className="px-4 py-2">Operador</th>
+                        <th className="px-4 py-2">Máquina</th>
+                        <th className="px-4 py-2">Cantidad</th>
+                        <th className="px-4 py-2">Fecha</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {selectedOrder.events && selectedOrder.events.length > 0 ? (
+                        selectedOrder.events.map((event, index) => (
+                          <tr key={index} className="border-b border-white/10">
+                            <td className="px-4 py-3 flex items-center gap-2">
+                              {getEventIcon(event.type)} {event.type}
+                            </td>
+                            <td className="px-4 py-3">{employees.find(e => e.id === event.operatorId)?.name || event.operatorId}</td>
+                            <td className="px-4 py-3">{machines.find(m => m.id === event.machineId)?.name || event.machineId}</td>
+                            <td className="px-4 py-3">{event.quantity} {event.unit}</td>
+                            <td className="px-4 py-3">{new Date(event.timestamp).toLocaleString()}</td>
+                          </tr>
+                        ))
+                      ) : (
+                        <tr>
+                          <td colSpan={5} className="text-center py-4 text-text-muted">No hay eventos de producción registrados.</td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              {user?.role === Role.Admin && (
+                <div className="glass glass-noise p-6 printable-area" data-print-key="order_summary">
+                  <h3 className="text-lg venki-subtitle mb-4">Resumen de Costos y Variación</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                    <div>
+                      <p className="text-text-muted">Costo Objetivo:</p>
+                      <p className="font-semibold venki-value">${selectedOrder.targetCost?.toFixed(2) ?? 'N/A'}</p>
+                    </div>
+                    <div>
+                      <p className="text-text-muted">Costo Real:</p>
+                      <p className="font-semibold venki-value">${selectedOrder.actualCost?.toFixed(2) ?? 'N/A'}</p>
+                    </div>
+                    <div>
+                      <p className="text-text-muted">Variación:</p>
+                      <p className={`font-semibold venki-value ${variance && variance.variance > 0 ? 'text-red-400' : 'text-green-400'}`}>
+                        ${variance?.variance?.toFixed(2) ?? 'N/A'}
                       </p>
                     </div>
                     <div>
-                      <p className="text-sm">% Varianza</p>
-                      <p
-                        className={`text-2xl font-bold ${
-                          variance.variancePct > 0 ? "text-red-400" : "text-green-400"
-                        }`}
-                      >
-                        {variance.variancePct.toFixed(2)}%
+                      <p className="text-text-muted">% Variación:</p>
+                      <p className={`font-semibold venki-value ${variance && variance.variance > 0 ? 'text-red-400' : 'text-green-400'}`}>
+                        {variance?.variancePct?.toFixed(2) ?? 'N/A'}%
                       </p>
                     </div>
                   </div>
-                ) : (
-                  <p>No hay datos de costos.</p>
-                )}
-              </div>
-              
-                <div className="glass glass-noise p-6">
-                    <h3 className="text-lg font-semibold venki-subtitle mb-4">Bitácora de Eventos</h3>
-                    <div className="space-y-2 max-h-60 overflow-y-auto pr-2">
-                        {[...(selectedOrder.events || [])].reverse().map((event: ProductionEvent) => (
-                             <div key={event.id} className="flex items-center gap-3 text-sm p-2 bg-black/20 rounded-md">
-                                <div className="flex-shrink-0 w-8 h-8 flex items-center justify-center glass rounded-full text-accent-cyan">
-                                    {ICONS[getEventIcon(event.type)]}
-                                </div>
-                                <div>
-                                    <p className="font-semibold text-text-strong">{event.type}</p>
-                                    <p className="text-xs text-text-muted">
-                                        {new Date(event.timestamp).toLocaleString('es-MX')} por {event.operatorId}
-                                    </p>
-                                </div>
-                                {event.quantity && (
-                                    <p className="ml-auto font-mono bg-black/30 px-2 py-1 rounded-md text-venki-yellow">
-                                        {event.quantity.toLocaleString()} {event.unit}
-                                    </p>
-                                )}
-                            </div>
-                        ))}
-                        {(!selectedOrder.events || selectedOrder.events.length === 0) && <p className="text-center text-text-muted">No hay eventos registrados.</p>}
-                    </div>
                 </div>
-
+              )}
             </>
           ) : (
-            <div className="glass glass-noise p-6 h-full flex items-center justify-center">
-              <p>Selecciona una orden.</p>
+            <div className="glass glass-noise p-6 text-center text-text-muted">
+              Selecciona una orden para ver los detalles.
             </div>
           )}
         </div>
       </div>
 
-      {/* Modales (montaje condicional correcto) */}
       <OrderEditModal
         isOpen={isOrderModalOpen}
         onClose={() => setIsOrderModalOpen(false)}

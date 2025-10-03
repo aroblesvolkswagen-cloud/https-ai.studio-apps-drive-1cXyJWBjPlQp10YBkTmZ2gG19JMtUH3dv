@@ -111,13 +111,13 @@ const InventoryUploadModal: React.FC<InventoryUploadModalProps> = ({ isOpen, onC
                 </div>
                 <div>
                     <label htmlFor="csv-upload" className="block text-sm font-medium text-gray-200">Seleccionar Archivo .csv</label>
-                    <input type="file" id="csv-upload" accept=".csv" onChange={handleFileChange} className="mt-1 block w-full text-sm text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-sm file:font-semibold file:bg-venki-cyan file:text-venki-deep-blue hover:file:bg-cyan-200 transition-colors cursor-pointer neumorphic-inset"/>
+                    <input type="file" id="csv-upload" accept=".csv" onChange={handleFileChange} className="mt-1 block w-full text-sm text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-sm file:font-semibold file:bg-venki-cyan file:text-venki-deep-blue hover:file:bg-cyan-200 transition-colors cursor-pointer input-glass"/>
                 </div>
                 {error && <p className="text-red-300 text-sm bg-red-500/30 p-2 rounded-md">{error}</p>}
                 {previewData.length > 0 && (
                     <div className="space-y-2">
                          <h4 className="font-semibold text-white">Vista Previa de Datos ({previewData.length} registros a integrar)</h4>
-                         <div className="max-h-60 overflow-y-auto rounded-md neumorphic-inset p-2">
+                         <div className="max-h-60 overflow-y-auto rounded-md glass p-2">
                             <table className="w-full text-sm text-left">
                                 <thead className="bg-white/10 sticky top-0 text-white">
                                     <tr>
@@ -139,7 +139,7 @@ const InventoryUploadModal: React.FC<InventoryUploadModalProps> = ({ isOpen, onC
                                 </tbody>
                             </table>
                          </div>
-                         <button onClick={handleUpload} className="w-full px-4 py-2 font-semibold neumorphic-button neumorphic-button-accent">
+                         <button onClick={handleUpload} className="w-full btn-primary">
                             Confirmar e Integrar Datos
                         </button>
                     </div>
